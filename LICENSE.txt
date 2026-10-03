@@ -1,0 +1,8 @@
+Copyright (c) 2026 Forge ao Cubo. All rights reserved.
+
+The rights to the original source code and documentation in this repository belong to Forge ao
+Cubo. This notice does not grant any license to use, copy, modify, distribute, or sublicense
+this material. Such activities require prior express authorization from Forge ao Cubo.
+
+This notice does not alter the licenses applicable to third-party libraries or other components
+used by the project; those components remain subject to their respective licenses.

@@ -1,0 +1,28 @@
+# PlatformIO build output and IDE-local state
+.pio/
+.vscode/
+
+# Local Wi-Fi credentials (keep wifi.example.yaml as the versioned template)
+/SDFiles/credentials/wifi.yaml
+
+# Build products and compiler output
+/build/
+/dist/
+*.o
+*.a
+*.elf
+*.hex
+*.map
+*.pyc
+__pycache__/
+
+# Logs, temporary files, and OS metadata
+*.log
+*.temp
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
