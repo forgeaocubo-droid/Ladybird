@@ -1,0 +1,3 @@
+[submodule "src/Components"]
+	path = src/Components
+	url = git@github.com:forgeaocubo-droid/ESP32_Components.git

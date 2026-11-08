@@ -1,17 +1,23 @@
-#pragma once
+#define RGB_LED_PIN 48   // GPIO do LED RGB integrado (comum em várias ESP32-S3)
+#define SERVO_PIN 17    // GPIO do servo motor
 
-#include <stdint.h>
+#define MOTOR_RIGHT_PWM_PIN 4
+#define MOTOR_RIGHT_FORWARD_PIN 6
+#define MOTOR_RIGHT_BACKWARD_PIN 5
 
-namespace chimera {
+#define MOTOR_LEFT_PWM_PIN 7
+#define MOTOR_LEFT_FORWARD_PIN 16
+#define MOTOR_LEFT_BACKWARD_PIN 15
 
-constexpr uint8_t kNrf24ChipSelectPin = 10;
-constexpr uint8_t kSpiMosiPin = 7;
-constexpr uint8_t kSpiClockPin = 6;
-constexpr uint8_t kSpiMisoPin = 2;
-constexpr uint8_t kNrf24ChipEnablePin = 5;
-constexpr uint8_t kStatusLedPin = 0;
-constexpr uint8_t kInfoLedPin = 1;
-constexpr uint8_t kUltrasonicTriggerPin = 4;
-constexpr uint8_t kUltrasonicEchoPin = 3;
+#define ACCELEROMETER_SDA_PIN 8
+#define ACCELEROMETER_SCL_PIN 9
 
-}  // namespace chimera
+#define ULTRASONIC_TRIGGER_PIN 2
+#define ULTRASONIC_ECHO_PIN 1
+
+#define DISPLAY_TFT_SCLK 12
+#define DISPLAY_TFT_MOSI 11
+#define DISPLAY_TFT_CS 40
+#define DISPLAY_TFT_DC 41
+#define DISPLAY_TFT_RST 42
+#define DISPLAY_TFT_LEDBL 35
