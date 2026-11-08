@@ -1,131 +1,117 @@
-#include "Includes/init.hpp"
-#include "Includes/config.hpp"
-#include "Includes/pinMap.hpp"
+#include "Includes/Init.hpp"
+#include "Includes/Config.hpp"
+#include "Includes/PinMap.hpp"
+#include "Drivers/WifiSTA/Wifi_sta.hpp"
+
+using esp32_component::Accelerometer;
+using esp32_component::ColorDisplay;
+using esp32_component::HBridgeMotor;
+using esp32_component::Logger;
+using esp32_component::LogLevel;
+using esp32_component::MotorDirection;
+using esp32_component::RGBLed;
+using esp32_component::ServoMotor;
+using esp32_component::Ultrasonic;
+using esp32_component::WifiSta;
+
+namespace {
+
+constexpr char kWifiSsid[] = "VivoPA";
+constexpr char kWifiPassword[] = "pa314159180267";
+constexpr uint32_t kTelemetryIntervalMs = 20;
+
+Ultrasonic ultrasonic{ULTRASONIC_TRIGGER_PIN, ULTRASONIC_ECHO_PIN};
+Accelerometer accelerometer{kMpu6050Address, ACCELEROMETER_SDA_PIN,
+                            ACCELEROMETER_SCL_PIN};
+ServoMotor servo{SERVO_PIN};
+RGBLed rgb_led{RGB_LED_PIN};
+ColorDisplay display{DISPLAY_TFT_CS, DISPLAY_TFT_DC, DISPLAY_TFT_MOSI,
+                     DISPLAY_TFT_SCLK, DISPLAY_TFT_RST, DISPLAY_TFT_LEDBL};
+HBridgeMotor right_motor{MOTOR_RIGHT_FORWARD_PIN, MOTOR_RIGHT_BACKWARD_PIN,
+                         MOTOR_RIGHT_PWM_PIN};
+HBridgeMotor left_motor{MOTOR_LEFT_FORWARD_PIN, MOTOR_LEFT_BACKWARD_PIN,
+                        MOTOR_LEFT_PWM_PIN};
+WifiSta wifi_sta{kWifiPort, kWifiReconnectIntervalMs};
+uint32_t last_telemetry_ms = 0;
+bool wifi_was_connected = false;
+
+void LogInitializationFailure(const String& component) {
+  Logger::Instance().LogError(component + " initialization failed");
+}
+
+String BuildTelemetryJson() {
+  const uint32_t distance_mm = ultrasonic.MeasureNow();
+  float acceleration_x{0.0F};
+  float acceleration_y{0.0F};
+  float acceleration_z{0.0F};
+  float gyro_x{0.0F};
+  float gyro_y{0.0F};
+  float gyro_z{0.0F};
+  accelerometer.SampleNow();
+  accelerometer.ReadAxes(acceleration_x, acceleration_y, acceleration_z);
+  accelerometer.ReadGyroAxes(gyro_x, gyro_y, gyro_z);
+
+  return String("{\"acceleration_x\":") + String(acceleration_x, 3) +
+         ",\"acceleration_y\":" + String(acceleration_y, 3) +
+         ",\"acceleration_z\":" + String(acceleration_z, 3) +
+         ",\"gyroscope_x\":" + String(gyro_x, 3) +
+         ",\"gyroscope_y\":" + String(gyro_y, 3) +
+         ",\"gyroscope_z\":" + String(gyro_z, 3) +
+         ",\"temperature_c\":" +
+         String(accelerometer.ReadTemperature(), 2) +
+         ",\"distance_cm\":" + String(distance_mm / 10.0F, 1) + "}";
+}
+
+void LogConnection() {
+  Logger::Instance().LogInfo(String("Wi-Fi connected: IP=") +
+                             wifi_sta.LocalIp().toString() +
+                             " port=" + String(wifi_sta.Port()));
+}
+
+}  // namespace
 
 void setup() {
   Serial.begin(115200);
-  g_logger = Logger(LOGGING_ENABLED, LogLevel::Debug);
+  Logger::Instance().Configure(LOGGING_ENABLED, LogLevel::Info);
+  Logger::Instance().LogInfo("Starting Ladybird");
 
-  Serial.println("Initializing System");
+  if (!ultrasonic.Initialize()) LogInitializationFailure("Ultrasonic");
+  if (!accelerometer.Initialize()) LogInitializationFailure("Accelerometer");
+  if (!servo.Initialize()) LogInitializationFailure("Servo");
+  if (!servo.SetAngle(90)) LogInitializationFailure("Servo angle");
+  servo.Update();
+  if (!rgb_led.Initialize()) LogInitializationFailure("RGB LED");
+  if (!rgb_led.SetColor(10, 10, 10)) LogInitializationFailure("RGB LED color");
+  if (!display.Initialize()) LogInitializationFailure("Color display");
+  if (!display.ShowText("Forge Ao cubo", 15, 50, ST77XX_WHITE, 1)) {
+    LogInitializationFailure("Color display text");
+  }
+  if (!right_motor.Initialize()) LogInitializationFailure("Right motor");
+  if (!left_motor.Initialize()) LogInitializationFailure("Left motor");
+  right_motor.SetDirection(MotorDirection::Stopped);
+  right_motor.SetIntensity(0);
+  right_motor.Update();
+
+  left_motor.SetDirection(MotorDirection::Stopped);
+  left_motor.SetIntensity(0);
+  left_motor.Update();
+  if (!wifi_sta.Initialize(kWifiSsid, kWifiPassword)) {
+    LogInitializationFailure("Wi-Fi STA");
+  }
+  Logger::Instance().LogInfo(String("Wi-Fi telemetry TCP port: ") +
+                             String(wifi_sta.Port()));
 }
 
 void loop() {
-
+  wifi_sta.Update();
+  const uint32_t now = millis();
+  if (wifi_sta.IsConnected() && now - last_telemetry_ms >= kTelemetryIntervalMs) {
+    last_telemetry_ms = now;
+    wifi_sta.Broadcast(BuildTelemetryJson());
+  }
+  const bool wifi_connected = wifi_sta.IsConnected();
+  if (wifi_connected && !wifi_was_connected) {
+    LogConnection();
+  }
+  wifi_was_connected = wifi_connected;
 }
-
-
-
-
-
-/*int retry_counter = 0;
-long duracao;
-float distancia;
-
-Servo servo;
-Adafruit_MPU6050 mpu;
-Adafruit_NeoPixel led(1, RGB_LED_PIN, NEO_GRB + NEO_KHZ800);
-
-Adafruit_ST7735 tft = Adafruit_ST7735(DISPLAY_TFT_CS, DISPLAY_TFT_DC, DISPLAY_TFT_MOSI, DISPLAY_TFT_SCLK, DISPLAY_TFT_RST);
-
-void setup() {
-
-  tft.initR(INITR_BLACKTAB); // Init ST7735S chip, black tab
-  tft.setRotation(1);
-  tft.fillScreen(ST77XX_BLACK);
-  tft.setTextColor(ST77XX_WHITE);
-  tft.setTextSize(1);
-  tft.setCursor(15, 50);
-  tft.println("FORGE AO CUBO");
-  tft.drawRect(10, 40, 145, 40, ST77XX_YELLOW);
-
-  pinMode(DISPLAY_TFT_LEDBL, OUTPUT);
-  digitalWrite(DISPLAY_TFT_LEDBL, LOW);  
-  
-  Serial.begin(115200);
-
-  Wire.begin(ACCELEROMETER_SDA_PIN, ACCELEROMETER_SCL_PIN);
-
-  mpu.begin();
-  Serial.println("MPU6050 iniciado");
-  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-  mpu.setGyroRange(MPU6050_RANGE_500_DEG);
-  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-
-  pinMode(MOTOR_RIGHT_PWM_PIN, OUTPUT);
-  pinMode(MOTOR_RIGHT_FORWARD_PIN, OUTPUT);
-  pinMode(MOTOR_RIGHT_BACKWARD_PIN, OUTPUT);
-
-  pinMode(MOTOR_LEFT_PWM_PIN, OUTPUT);
-  pinMode(MOTOR_LEFT_FORWARD_PIN, OUTPUT);
-  pinMode(MOTOR_LEFT_BACKWARD_PIN, OUTPUT);
-
-  pinMode(ULTRASONIC_TRIGGER_PIN, OUTPUT);
-  pinMode(ULTRASONIC_ECHO_PIN, INPUT);
-
-  
-  servo.attach(SERVO_PIN); // Servo conectado ao pino 9
-  led.begin();
-  led.clear();
-
-  // Vermelho (R, G, B)
-  led.setPixelColor(0, led.Color(10, 10, 10));
-  led.show();
-  servo.write(90);   // Vai para 90°
-
-  digitalWrite(MOTOR_RIGHT_FORWARD_PIN, LOW);
-  digitalWrite(MOTOR_RIGHT_BACKWARD_PIN, LOW);
-  analogWrite(MOTOR_RIGHT_PWM_PIN, 0); // PWM 0-255
-
-  digitalWrite(MOTOR_LEFT_FORWARD_PIN, LOW);
-  digitalWrite(MOTOR_LEFT_BACKWARD_PIN, LOW);
-  analogWrite(MOTOR_LEFT_PWM_PIN, 0); // PWM 0-255
-
-
-}
-
-void loop() {
-  sensors_event_t a, g, temp;
-
-  digitalWrite(DISPLAY_TFT_LEDBL, HIGH);
-
-  digitalWrite(ULTRASONIC_TRIGGER_PIN, LOW);
-  delayMicroseconds(2);
-
-  digitalWrite(ULTRASONIC_TRIGGER_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(ULTRASONIC_TRIGGER_PIN, LOW);
-
-  // Lê o tempo de retorno
-  duracao = pulseIn(ULTRASONIC_ECHO_PIN, HIGH);
-
-  // Calcula distância em cm
-  distancia = duracao * 0.034 / 2;
-
-  Serial.print("Distancia: ");
-  Serial.print(distancia);
-  Serial.println(" cm");
-
-  mpu.getEvent(&a, &g, &temp);
-
-  Serial.println("=== Acelerometro ===");
-  Serial.print("X: ");
-  Serial.print(a.acceleration.x);
-  Serial.print("  Y: ");
-  Serial.print(a.acceleration.y);
-  Serial.print("  Z: ");
-  Serial.println(a.acceleration.z);
-
-  Serial.println("=== Giroscopio ===");
-  Serial.print("X: ");
-  Serial.print(g.gyro.x);
-  Serial.print("  Y: ");
-  Serial.print(g.gyro.y);
-  Serial.print("  Z: ");
-  Serial.println(g.gyro.z);
-
-  Serial.print("Temperatura: ");
-  Serial.print((temp.temperature/340.8)+36.53);
-  Serial.println(" °C");
-
-  delay(500);
-}*/
